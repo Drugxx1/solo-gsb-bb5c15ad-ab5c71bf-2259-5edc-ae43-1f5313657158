@@ -4,6 +4,7 @@ const path = require('path');
 const express = require('express');
 const { convertSrt } = require('./lib/convert');
 const { alignSrt } = require('./lib/align');
+const { splitTracks } = require('./lib/split');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -21,6 +22,13 @@ app.post('/api/align', (req, res) => {
   const result = alignSrt(body.primary, body.secondary);
   const status =
     result.primaryParseErrors || result.secondaryParseErrors || result.alignErrors ? 400 : 200;
+  res.status(status).json(result);
+});
+
+app.post('/api/split-tracks', (req, res) => {
+  const body = req.body || {};
+  const result = splitTracks(body.srt, body.locks);
+  const status = result.parseErrors || result.splitErrors ? 400 : 200;
   res.status(status).json(result);
 });
 

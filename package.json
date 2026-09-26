@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/convert.test.js && node test/align.test.js"
+    "test": "node test/convert.test.js && node test/align.test.js && node test/split.test.js"
   },
   "license": "MIT",
   "dependencies": {

@@ -9,13 +9,14 @@
 <body>
   <main class="container">
     <h1>SRT 字幕时间校正工具</h1>
-    <p class="subtitle">按“原片时间 → 成片时间”锚点对字幕做分段线性映射，并可把校正后的主轨与成片时间轴上的副轨字幕做双语对齐。</p>
+    <p class="subtitle">按“原片时间 → 成片时间”锚点对字幕做分段线性映射，可把校正后的主轨与成片时间轴上的副轨字幕做双语对齐，并把时间上相互重叠的字幕分到多条轨。</p>
 
     <section class="card">
       <h2>1. 输入 SRT 字幕</h2>
       <div class="row">
         <input type="file" id="fileInput" accept=".srt,.txt" />
         <button type="button" id="loadSampleBtn" class="secondary">载入示例</button>
+        <button type="button" id="loadOverlapSampleBtn" class="secondary">载入重叠示例</button>
         <button type="button" id="clearBtn" class="secondary">清空</button>
       </div>
       <textarea id="srtInput" rows="10" placeholder="在此粘贴 SRT 内容，或选择 .srt 文件上传…"></textarea>
@@ -103,6 +104,29 @@
           <tbody id="unmatchedSecondaryBody"></tbody>
         </table>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>5. 重叠字幕分轨（主轨 = 第 3 步校正后的 SRT）</h2>
+      <p class="hint">把时间上相互重叠的字幕分到 1～4 号轨：每条字幕恰好出现一次，同轨字幕时间区间（左闭右开）不得有正长度交叠，端点相接可共轨。可将任意条锁定到固定轨号，其余自动分配；每次处理 1～24 条。校正成功后下方列出字幕清单。</p>
+      <div class="row">
+        <button type="button" id="splitBtn">开始分轨</button>
+      </div>
+      <div id="splitMessage" class="message" hidden></div>
+      <div id="splitTableWrap" hidden>
+        <h3>字幕清单（共 <span id="splitEntryCount">0</span> 条 · 使用 <span id="splitTrackCount">0</span> 轨）</h3>
+        <div class="table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th>位置</th><th>序号</th><th>时间</th><th>锁定</th><th>轨号</th><th>正文</th>
+              </tr>
+            </thead>
+            <tbody id="splitBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row" id="splitDownloads" style="margin-top: 10px; margin-bottom: 0;"></div>
     </section>
   </main>
   <script src="app.js"></script>
