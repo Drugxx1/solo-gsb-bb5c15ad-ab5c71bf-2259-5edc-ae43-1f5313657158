@@ -27,9 +27,18 @@
   var pairCount = document.getElementById('pairCount');
   var unmatchedPrimaryCount = document.getElementById('unmatchedPrimaryCount');
   var unmatchedSecondaryCount = document.getElementById('unmatchedSecondaryCount');
+  var splitLockBody = document.getElementById('splitLockBody');
+  var splitBtn = document.getElementById('splitBtn');
+  var splitMessageBox = document.getElementById('splitMessage');
+  var splitResultCard = document.getElementById('splitResultCard');
+  var splitResultBody = document.getElementById('splitResultBody');
+  var splitEntryCount = document.getElementById('splitEntryCount');
+  var splitTrackCount = document.getElementById('splitTrackCount');
+  var splitDownloads = document.getElementById('splitDownloads');
 
   var correctedSrt = null;
   var alignCsv = null;
+  var splitTrackSrts = {};
 
   // ---------- 锚点行 ----------
 
@@ -280,6 +289,188 @@
     URL.revokeObjectURL(url);
   }
 
+  // ---------- 分轨：消息与失效 ----------
+
+  function showSplitMessage(kind, lines) {
+    splitMessageBox.hidden = false;
+    splitMessageBox.className = 'message ' + kind;
+    splitMessageBox.textContent = Array.isArray(lines) ? lines.join('\n') : String(lines);
+  }
+
+  function hideSplitMessage() {
+    splitMessageBox.hidden = true;
+    splitMessageBox.textContent = '';
+  }
+
+  // 主轨或锁定值改变后，旧分轨结果失效
+  function resetSplit() {
+    splitTrackSrts = {};
+    splitResultCard.hidden = true;
+    splitResultBody.innerHTML = '';
+    splitDownloads.innerHTML = '';
+    hideSplitMessage();
+  }
+
+  // ---------- 分轨：锁定表 ----------
+
+  // 校正成功后按主轨条目重建锁定表（位置 = 主轨文件顺序，从 1 开始）
+  function buildSplitLockTable(entries) {
+    splitLockBody.innerHTML = '';
+    entries.forEach(function (e, i) {
+      var tr = document.createElement('tr');
+
+      var tdPos = document.createElement('td');
+      tdPos.textContent = String(i + 1);
+      tr.appendChild(tdPos);
+
+      [e.newStart, e.newEnd].forEach(function (v) {
+        var td = document.createElement('td');
+        td.className = 'time';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+
+      var tdLock = document.createElement('td');
+      var select = document.createElement('select');
+      select.className = 'lock-select';
+      [['', '不锁定'], ['1', '1 号轨'], ['2', '2 号轨'], ['3', '3 号轨'], ['4', '4 号轨']]
+        .forEach(function (opt) {
+          var o = document.createElement('option');
+          o.value = opt[0];
+          o.textContent = opt[1];
+          select.appendChild(o);
+        });
+      // 锁定值改变后旧分轨结果失效
+      select.addEventListener('change', resetSplit);
+      tdLock.appendChild(select);
+      tr.appendChild(tdLock);
+
+      var tdText = document.createElement('td');
+      tdText.className = 'text';
+      tdText.textContent = e.text;
+      tr.appendChild(tdText);
+
+      splitLockBody.appendChild(tr);
+    });
+    if (entries.length > 24) {
+      showSplitMessage('error',
+        '当前主轨共 ' + entries.length + ' 条字幕，超出每次 1～24 条的范围，请分段处理后再分轨。');
+    }
+  }
+
+  function collectLocks() {
+    var locks = [];
+    var selects = splitLockBody.querySelectorAll('.lock-select');
+    for (var i = 0; i < selects.length; i++) {
+      if (selects[i].value !== '') {
+        locks.push({ position: i + 1, track: Number(selects[i].value) });
+      }
+    }
+    return locks;
+  }
+
+  // ---------- 分轨：结果展示与下载 ----------
+
+  function renderSplit(data) {
+    splitEntryCount.textContent = String(data.stats.entries);
+    splitTrackCount.textContent = String(data.stats.tracks);
+
+    splitResultBody.innerHTML = '';
+    data.entries.forEach(function (e) {
+      var tr = document.createElement('tr');
+      if (e.locked !== null) tr.className = 'locked';
+
+      var tdPos = document.createElement('td');
+      tdPos.textContent = String(e.position);
+      tr.appendChild(tdPos);
+
+      [e.start, e.end].forEach(function (v) {
+        var td = document.createElement('td');
+        td.className = 'time';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+
+      var tdLock = document.createElement('td');
+      tdLock.textContent = e.locked === null ? '—' : e.locked + ' 号轨';
+      tr.appendChild(tdLock);
+
+      var tdTrack = document.createElement('td');
+      tdTrack.className = 'track-badge';
+      tdTrack.textContent = e.track + ' 号轨';
+      tr.appendChild(tdTrack);
+
+      var tdText = document.createElement('td');
+      tdText.className = 'text';
+      tdText.textContent = e.text;
+      tr.appendChild(tdText);
+
+      splitResultBody.appendChild(tr);
+    });
+
+    // 仅非空轨提供下载
+    splitTrackSrts = {};
+    splitDownloads.innerHTML = '';
+    data.tracks.forEach(function (t) {
+      splitTrackSrts[t.track] = t.srt;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'secondary';
+      btn.textContent = '下载 ' + t.track + ' 号轨 SRT（' + t.count + ' 条）';
+      btn.addEventListener('click', function () { downloadTrack(t.track); });
+      splitDownloads.appendChild(btn);
+    });
+
+    splitResultCard.hidden = false;
+  }
+
+  function downloadTrack(track) {
+    var srt = splitTrackSrts[track];
+    if (!srt) return;
+    var blob = new Blob([srt], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'track-' + track + '.srt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- 分轨请求 ----------
+
+  function split() {
+    resetSplit();
+    if (!correctedSrt) {
+      showSplitMessage('error', '请先完成第 3 步校正：分轨使用校正成功后返回的主轨 SRT。');
+      return;
+    }
+    fetch('/api/split-tracks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ srt: correctedSrt, locks: collectLocks() })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.parseErrors) {
+          showSplitMessage('error', ['主轨 SRT 解析失败：'].concat(data.parseErrors));
+          return;
+        }
+        if (data.splitErrors) {
+          // 无法分轨：不生成任何下载
+          showSplitMessage('error', data.splitErrors);
+          return;
+        }
+        renderSplit(data);
+        showSplitMessage('ok', '分轨完成：共 ' + data.stats.entries + ' 条字幕，使用 ' +
+          data.stats.tracks + ' 条轨（锁定 ' + data.stats.locked + ' 条），可分别下载各轨 SRT。');
+      })
+      .catch(function (err) {
+        showSplitMessage('error', '请求失败：' + err.message);
+      });
+  }
+
   // ---------- 校正请求 ----------
 
   function convert() {
@@ -287,6 +478,8 @@
     correctedSrt = null;
     downloadBtn.disabled = true;
     resetAlign();
+    resetSplit();
+    splitLockBody.innerHTML = '';
 
     var payload = { srt: srtInput.value, anchors: collectAnchors() };
     fetch('/api/convert', {
@@ -313,6 +506,7 @@
         }
         correctedSrt = data.srt;
         downloadBtn.disabled = false;
+        buildSplitLockTable(data.entries || []);
         showMessage('ok', '校正完成，共 ' + (data.entries ? data.entries.length : 0) + ' 条字幕，可下载导出。');
       })
       .catch(function (err) {
@@ -369,6 +563,8 @@
     correctedSrt = null;
     downloadBtn.disabled = true;
     resetAlign();
+    resetSplit();
+    splitLockBody.innerHTML = '';
     hideMessage();
   });
 
@@ -408,6 +604,7 @@
 
   alignBtn.addEventListener('click', align);
   downloadCsvBtn.addEventListener('click', downloadCsv);
+  splitBtn.addEventListener('click', split);
 
   addAnchorBtn.addEventListener('click', function () { addAnchorRow(); });
   convertBtn.addEventListener('click', convert);

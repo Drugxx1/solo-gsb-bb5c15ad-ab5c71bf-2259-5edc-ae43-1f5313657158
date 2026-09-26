@@ -9,7 +9,7 @@
 <body>
   <main class="container">
     <h1>SRT 字幕时间校正工具</h1>
-    <p class="subtitle">按“原片时间 → 成片时间”锚点对字幕做分段线性映射，并可把校正后的主轨与成片时间轴上的副轨字幕做双语对齐。</p>
+    <p class="subtitle">按“原片时间 → 成片时间”锚点对字幕做分段线性映射，可把校正后的主轨与成片时间轴上的副轨字幕做双语对齐，并把重叠字幕拆分到多条轨。</p>
 
     <section class="card">
       <h2>1. 输入 SRT 字幕</h2>
@@ -57,8 +57,7 @@
     </section>
 
     <section class="card">
-      <h2>4. 双语字幕对齐（主轨 = 第 3 步校正后的 SRT）</h2>
-      <div class="row">
+      <h2>4. 双语字幕对齐（主轨 = 第 3 步校正后的 SRT）</h2>      <div class="row">
         <input type="file" id="secondaryFileInput" accept=".srt,.txt" />
         <button type="button" id="loadSecondarySampleBtn" class="secondary">载入副轨示例</button>
         <button type="button" id="clearSecondaryBtn" class="secondary">清空副轨</button>
@@ -101,6 +100,44 @@
             <tr><th>序号</th><th>开始</th><th>结束</th><th>正文</th></tr>
           </thead>
           <tbody id="unmatchedSecondaryBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5. 重叠字幕分轨（主轨 = 第 3 步校正后的 SRT，每次 1～24 条）</h2>
+      <p class="hint">
+        把时间上相互重叠的字幕拆到不同轨：每条字幕可锁定到 1～4 号轨（不锁则自动分配），
+        同轨字幕时间不得正长度交叠（端点相接可共轨）。分轨全局求解：先最小化最大轨号，
+        再取按原位置排列的轨号向量字典序最小者。
+      </p>
+      <div id="splitMessage" class="message" hidden></div>
+      <div class="table-wrap">
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th>位置</th><th>开始</th><th>结束</th><th>锁定轨号</th><th>正文</th>
+            </tr>
+          </thead>
+          <tbody id="splitLockBody"></tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top: 10px;">
+        <button type="button" id="splitBtn">开始分轨</button>
+      </div>
+    </section>
+
+    <section class="card" id="splitResultCard" hidden>
+      <h2>分轨结果（共 <span id="splitEntryCount">0</span> 条 · 使用 <span id="splitTrackCount">0</span> 轨）</h2>
+      <div class="row" id="splitDownloads"></div>
+      <div class="table-wrap">
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th>位置</th><th>开始</th><th>结束</th><th>锁定轨号</th><th>最终轨号</th><th>正文</th>
+            </tr>
+          </thead>
+          <tbody id="splitResultBody"></tbody>
         </table>
       </div>
     </section>

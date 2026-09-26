@@ -84,3 +84,16 @@ button.danger { background: #cf222e; padding: 4px 10px; font-size: 13px; }
 }
 .message.error { background: #ffebe9; border: 1px solid #ff818266; color: #82071e; }
 .message.ok { background: #dafbe1; border: 1px solid #4ac26b66; color: #116329; }
+
+.hint { color: #57606a; font-size: 13px; margin: 0 0 12px; }
+
+.result-table select.lock-select {
+  font-size: 13px;
+  padding: 3px 6px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.result-table td.track-badge { font-weight: 600; text-align: center; }
+.result-table tr.locked td { background: #fff8e6; }
